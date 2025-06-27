@@ -1,48 +1,48 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/coach_model.dart';
+import '../services/booking_service.dart';
 import '../widgets/coach_card.dart';
 
 class CoachesScreen extends StatelessWidget {
   const CoachesScreen({super.key});
 
-  // Dummy data for coaches. We'll use placeholder images.
-  final List<Coach> _coaches = const [
-    Coach(
-      name: 'Alex Morgan',
-      specialty: 'Yoga & Meditation',
-      imageUrl: 'https://images.pexels.com/photos/416809/pexels-photo-416809.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
-    ),
-    Coach(
-      name: 'Ben Carter',
-      specialty: 'Calisthenics & Strength',
-      imageUrl: 'https://images.pexels.com/photos/927451/pexels-photo-927451.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
-    ),
-    Coach(
-      name: 'Chloe Davis',
-      specialty: 'Swimming & Aqua Fitness',
-      imageUrl: 'https://images.pexels.com/photos/3768911/pexels-photo-3768911.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
-    ),
-    Coach(
-      name: 'David Rodriguez',
-      specialty: 'General Fitness',
-      imageUrl: 'https://images.pexels.com/photos/841130/pexels-photo-841130.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final bookingService = Provider.of<BookingService>(context, listen: false);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Our Coaches'),
         centerTitle: false,
         elevation: 1,
       ),
-      body: ListView.builder(
-        itemCount: _coaches.length,
-        itemBuilder: (context, index) {
-          final coach = _coaches[index];
-          // Use our reusable CoachCard widget
-          return CoachCard(coach: coach);
+      // FutureBuilder handles displaying data that hasn't arrived yet.
+      body: FutureBuilder<List<Coach>>(
+        future: bookingService.getCoaches(), // This is the function we want to run
+        builder: (context, snapshot) {
+          // 1. While waiting for data, show a loading spinner.
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          // 2. If there was an error, show an error message.
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          // 3. If the data is empty or null, show a message.
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text('No coaches found.'));
+          }
+
+          // 4. If we have data, store it and build our list.
+          final coaches = snapshot.data!;
+          return ListView.builder(
+            itemCount: coaches.length,
+            itemBuilder: (context, index) {
+              final coach = coaches[index];
+              return CoachCard(coach: coach);
+            },
+          );
         },
       ),
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../models/coach_model.dart';
 
 class CoachCard extends StatelessWidget {
@@ -14,28 +15,26 @@ class CoachCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         contentPadding: const EdgeInsets.all(12),
-        // The coach's profile picture
         leading: CircleAvatar(
           radius: 30,
           backgroundImage: NetworkImage(coach.imageUrl),
-          backgroundColor: Colors.grey[200], // Shows while the image loads
+          backgroundColor: Colors.grey[200],
         ),
-        // The coach's name
         title: Text(
           coach.name,
           style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
-        // The coach's specialty
         subtitle: Text(
           coach.specialty,
           style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.primary),
         ),
-        // An icon to suggest the card is tappable
         trailing: const Icon(Icons.chevron_right),
+        //... inside the ListTile
         onTap: () {
-          // Later, this will navigate to the coach's detail screen
-          print('Tapped on ${coach.name}');
+          // Navigate using the coach's unique document ID
+          context.go('/coaches/details/${coach.id}');
         },
+//...
       ),
     );
   }
