@@ -21,12 +21,16 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   void initState() {
     super.initState();
     _selectedDate = DateTime.now();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _fetchEvents();
-    });
+    // --- THIS IS THE FIX ---
+    // We call _fetchEvents() directly here. It's safe because the function
+    // below uses 'listen: false', which is allowed inside initState.
+    // This ensures _eventsFuture is initialized before the build method runs.
+    _fetchEvents();
   }
 
   void _fetchEvents() {
+    // We use 'listen: false' here because we are not rebuilding the widget
+    // based on a Provider change, but rather calling a function on the service.
     final bookingService = Provider.of<BookingService>(context, listen: false);
     setState(() {
       _eventsFuture = bookingService.getEventsForDate(_selectedDate);
@@ -60,7 +64,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     if (didRequestDelete) {
       try {
         await bookingService.deleteUserEvent(eventId);
-        _fetchEvents();
+        _fetchEvents(); // Re-fetch to show the updated list
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -73,13 +77,14 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentUserId = Provider.of<BookingService>(context, listen: false).currentUserId;
+    final bookingService = Provider.of<BookingService>(context, listen: false);
+    // Use the null-aware operator '??' to provide a default value if not logged in
+    final currentUserId = bookingService.currentUserId ?? '';
 
     return Scaffold(
       appBar: AppBar(
         title: const Text("Andreasen Center Schedule"),
         centerTitle: false,
-        elevation: 1,
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
@@ -92,38 +97,40 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       ),
       body: Column(
         children: [
-          // This function now has its full code restored
           _buildDateSelector(),
           const SizedBox(height: 8),
           Expanded(
-            child: FutureBuilder<List<Event>>(
-              future: _eventsFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('No events for this day.'));
-                }
+            child: RefreshIndicator(
+              onRefresh: () async => _fetchEvents(),
+              child: FutureBuilder<List<Event>>(
+                future: _eventsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(child: Text('No events for this day.'));
+                  }
 
-                final events = snapshot.data!;
-                return ListView.builder(
-                  itemCount: events.length,
-                  itemBuilder: (context, index) {
-                    final event = events[index];
-                    final isUserEvent = event.userId == currentUserId;
+                  final events = snapshot.data!;
+                  return ListView.builder(
+                    itemCount: events.length,
+                    itemBuilder: (context, index) {
+                      final event = events[index];
+                      final isUserEvent = event.userId == currentUserId;
 
-                    return EventCard(
-                      event: event,
-                      isUserEvent: isUserEvent,
-                      onDelete: isUserEvent ? () => _handleDelete(event.id) : null,
-                    );
-                  },
-                );
-              },
+                      return EventCard(
+                        event: event,
+                        isUserEvent: isUserEvent,
+                        onDelete: isUserEvent ? () => _handleDelete(event.id) : null,
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ),
         ],
@@ -131,14 +138,13 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     );
   }
 
-  // --- THIS IS THE CORRECT, FULL CODE FOR THE DATE SELECTOR ---
   Widget _buildDateSelector() {
     return Container(
       height: 90,
       color: Theme.of(context).scaffoldBackgroundColor,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: 7, // Show the next 7 days
+        itemCount: 7,
         itemBuilder: (context, index) {
           final date = DateTime.now().add(Duration(days: index));
           final isSelected = date.day == _selectedDate.day &&
@@ -147,7 +153,6 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
           return GestureDetector(
             onTap: () {
-              // When a date is tapped, update the state to trigger a rebuild
               setState(() {
                 _selectedDate = date;
               });
@@ -166,16 +171,14 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Day of the week (e.g., "Fri")
                   Text(
-                    DateFormat.E().format(date), // E = Abbreviated day name
+                    DateFormat.E().format(date),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: isSelected ? Colors.white : Colors.black,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  // Day number (e.g., "27")
                   Text(
                     date.day.toString(),
                     style: TextStyle(

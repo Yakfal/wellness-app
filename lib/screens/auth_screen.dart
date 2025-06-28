@@ -17,8 +17,18 @@ class _AuthScreenState extends State<AuthScreen> {
   AuthMode _authMode = AuthMode.login;
   bool _isLoading = false;
 
+  // Controllers to read the input from the text fields
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _firstNameController = TextEditingController(); // The new controller
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _firstNameController.dispose(); // Dispose the new controller
+    super.dispose();
+  }
 
   void _switchAuthMode() {
     setState(() {
@@ -28,7 +38,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
-      return;
+      return; // If form is not valid, do nothing
     }
     _formKey.currentState!.save();
     setState(() => _isLoading = true);
@@ -36,15 +46,22 @@ class _AuthScreenState extends State<AuthScreen> {
     try {
       final authService = Provider.of<BookingService>(context, listen: false);
       if (_authMode == AuthMode.login) {
-        await authService.signInWithEmail(_emailController.text, _passwordController.text);
+        // Sign in doesn't need the first name
+        await authService.signInWithEmail(
+            _emailController.text, _passwordController.text);
       } else {
-        await authService.signUpWithEmail(_emailController.text, _passwordController.text);
+        // Sign up now passes the first name to the service
+        await authService.signUpWithEmail(_emailController.text,
+            _passwordController.text, _firstNameController.text);
       }
-      // Navigation will be handled in the next step, for now it does nothing on success
+      // If successful, the GoRouter redirect will handle navigation automatically.
+      // We don't need to call context.go() here.
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString()), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text(error.toString().replaceFirst("Exception: ", "")), // Clean up the error message
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -55,17 +72,11 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_authMode == AuthMode.login ? 'Login' : 'Sign Up'),
+        title: Text(_authMode == AuthMode.login ? 'Welcome Back!' : 'Create Your Account'),
+        automaticallyImplyLeading: false, // Removes the back button
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -76,10 +87,23 @@ class _AuthScreenState extends State<AuthScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'Welcome to Laisec Wellness',
-                  style: Theme.of(context).textTheme.headlineSmall,
+                  'Andreasen Center for Wellness',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
                 const SizedBox(height: 32),
+
+                // Conditionally show the First Name field only in Sign Up mode
+                if (_authMode == AuthMode.signup)
+                  TextFormField(
+                    controller: _firstNameController,
+                    decoration: const InputDecoration(labelText: 'First Name', border: OutlineInputBorder()),
+                    validator: (value) => (value == null || value.isEmpty) ? 'Please enter your first name' : null,
+                  ),
+                if (_authMode == AuthMode.signup) const SizedBox(height: 16),
+
                 TextFormField(
                   controller: _emailController,
                   decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
@@ -101,6 +125,8 @@ class _AuthScreenState extends State<AuthScreen> {
                     onPressed: _submit,
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(double.infinity, 50),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.white,
                     ),
                     child: Text(_authMode == AuthMode.login ? 'LOGIN' : 'SIGN UP'),
                   ),

@@ -15,6 +15,7 @@ import 'screens/add_event_screen.dart';
 import 'screens/auth_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/membership_screen.dart'; // <<< Ensure this import is here
+import 'screens/home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,7 +32,7 @@ Future<void> main() async {
 
 final GoRouter _router = GoRouter(
   refreshListenable: GoRouterRefreshStream(FirebaseAuth.instance.authStateChanges()),
-  initialLocation: '/schedule',
+  initialLocation: '/home',
   routes: <RouteBase>[
     GoRoute(
       path: '/auth',
@@ -53,6 +54,7 @@ final GoRouter _router = GoRouter(
     ShellRoute(
       builder: (context, state, child) => ScaffoldWithNavBar(child: child),
       routes: <RouteBase>[
+        GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
         GoRoute(path: '/schedule', builder: (context, state) => const ScheduleScreen()),
         GoRoute(path: '/dashboard', builder: (context, state) => const DashboardScreen()),
         GoRoute(
@@ -92,7 +94,7 @@ final GoRouter _router = GoRouter(
 
     // If a logged-in user tries to go to the auth screen, redirect them away
     if (loggingIn && state.matchedLocation == '/auth') {
-      return '/schedule';
+      return '/home';
     }
 
     return null;
@@ -121,47 +123,26 @@ class WellnessApp extends StatelessWidget {
   }
 }
 
-// Helper class to make GoRouter listen to Firebase Auth changes
-class GoRouterRefreshStream extends ChangeNotifier {
-  GoRouterRefreshStream(Stream<dynamic> stream) {
-    notifyListeners();
-    _subscription = stream.asBroadcastStream().listen((_) => notifyListeners());
-  }
-  late final StreamSubscription<dynamic> _subscription;
-  @override
-  void dispose() {
-    _subscription.cancel();
-    super.dispose();
-  }
-}
-
-// The full ScaffoldWithNavBar widget
 class ScaffoldWithNavBar extends StatelessWidget {
-  const ScaffoldWithNavBar({required this.child, super.key});
+  const ScaffoldWithNavBar({super.key, required this.child});
   final Widget child;
   
   static int _calculateSelectedIndex(BuildContext context) {
     final String location = GoRouterState.of(context).uri.toString();
-    if (location.startsWith('/dashboard')) return 1;
-    if (location.startsWith('/coaches')) return 2;
-    if (location.startsWith('/profile')) return 3;
-    return 0; // Default to Schedule
+    if (location.startsWith('/schedule')) return 1;
+    if (location.startsWith('/dashboard')) return 2;
+    if (location.startsWith('/coaches')) return 3;
+    if (location.startsWith('/profile')) return 4;
+    return 0; // Home is now index 0
   }
 
   void _onItemTapped(int index, BuildContext context) {
     switch (index) {
-      case 0:
-        context.go('/schedule');
-        break;
-      case 1:
-        context.go('/dashboard');
-        break;
-      case 2:
-        context.go('/coaches');
-        break;
-      case 3:
-        context.go('/profile');
-        break;
+      case 0: context.go('/home'); break;
+      case 1: context.go('/schedule'); break;
+      case 2: context.go('/dashboard'); break;
+      case 3: context.go('/coaches'); break;
+      case 4: context.go('/profile'); break;
     }
   }
 
@@ -173,6 +154,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
         currentIndex: _calculateSelectedIndex(context),
         onTap: (int index) => _onItemTapped(index, context),
         items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Schedule'),
           BottomNavigationBarItem(icon: Icon(Icons.space_dashboard_rounded), label: 'Live Usage'),
           BottomNavigationBarItem(icon: Icon(Icons.sports_kabaddi), label: 'Coaches'),
@@ -181,5 +163,19 @@ class ScaffoldWithNavBar extends StatelessWidget {
         type: BottomNavigationBarType.fixed,
       ),
     );
+  }
+}
+
+// Helper class to make GoRouter listen to Firebase Auth changes
+class GoRouterRefreshStream extends ChangeNotifier {
+  GoRouterRefreshStream(Stream<dynamic> stream) {
+    notifyListeners();
+    _subscription = stream.asBroadcastStream().listen((_) => notifyListeners());
+  }
+  late final StreamSubscription<dynamic> _subscription;
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
   }
 }
